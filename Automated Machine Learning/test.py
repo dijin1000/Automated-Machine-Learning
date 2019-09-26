@@ -58,6 +58,7 @@ class TestMetaModels(unittest.TestCase):
         random_configurations = TestMetaModels.sample_configurations(32, 42)
 
         defaults = meta_model.determine_defaults(random_configurations, sum)
+        print(defaults)
         fixture = [
             (129.9939107327918, 0.00013990045035991287),
             (21591.81713748779, 2.5807085790756554),
@@ -80,3 +81,6 @@ class TestMetaModels(unittest.TestCase):
         result = meta_model.evaluate(sklearn.svm.SVC(random_state=1),
                                      list_of_dicts[0:4], X_train, X_test, y_train, y_test)
         self.assertAlmostEqual(result, fixture)
+
+if __name__ == '__main__':
+    unittest.main()

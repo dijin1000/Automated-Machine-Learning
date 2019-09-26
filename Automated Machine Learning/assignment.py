@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Sep 26 11:19:00 2019
+
+@author: Gerar
+"""
+
 import numpy as np
 import pandas as pd
 import sklearn.base
@@ -30,7 +37,11 @@ class SurrogatedGreedyDefaults(object):
         :param performance_column: the column name that represents the performance of the configuration
         :param task_indication_column: the column name that represents the task the configuration was ran on
         """
-        raise NotImplementedError('Not implemented yet')
+        for i in meta_data[task_indication_column].unique():
+            tmp_subset = meta_data.loc[meta_data[task_indication_column] == i]
+            tmp_regr = sklearn.tree.DecisionTreeRegressor(random_state=1)
+            tmp_regr.fit(tmp_subset[hyperparameter_columns], tmp_subset[performance_column])
+            self.surrogates[i] = tmp_regr
 
     def surrogate_predict(self, task_id: int, configurations: np.array) -> np.array:
         """
@@ -51,8 +62,25 @@ class SurrogatedGreedyDefaults(object):
         :param configurations: the set of configurations
         :param aggregate: the aggregation function (will only be used for greedy defaults, ignored for average rank)
         :return: a list of configurations, that will work as defaults
-        """
-        raise NotImplementedError('Not implemented yet')
+        """        
+        results = pd.DataFrame([])
+        for conf in configurations:
+            results = results.append(pd.DataFrame([[surr.predict([list(conf.values())]) for surr in self.surrogates.values()]]))        
+        results = pd.DataFrame(configurations).join(results.reset_index(drop=True))      
+        results = results.set_index(list(configurations[0].keys()))
+
+        toRank = results
+        ranked = pd.DataFrame([])
+        while results.shape != ranked.shape:
+            tmpRanking = pd.DataFrame([])
+            for index, row in toRank.iterrows():                
+                tmpData = ranked.append(row)
+                tmpData = tmpData.apply(aggregate)
+                tmpRanking = tmpRanking.append(pd.DataFrame([np.sum(tmpData)],index=[index]))    
+            ranked = ranked.append(toRank.loc[np.sum(tmpRanking,axis=1).sort_values(ascending=False).index.tolist()[0:1]])    
+            toRank = toRank.drop(ranked.index.tolist()[-1])            
+        return(ranked.index.tolist())
+
 
     @staticmethod
     def evaluate(classifier: sklearn.base.BaseEstimator,
@@ -74,3 +102,7 @@ class SurrogatedGreedyDefaults(object):
         search_cv = sklearn.model_selection.GridSearchCV(classifier, defaults)
         search_cv.fit(X_train, y_train)
         return search_cv.score(X_test, y_test)
+
+
+
+
