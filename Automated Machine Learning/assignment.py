@@ -69,16 +69,25 @@ class SurrogatedGreedyDefaults(object):
         results = pd.DataFrame(configurations).join(results.reset_index(drop=True))      
         results = results.set_index(list(configurations[0].keys()))
 
-        toRank = results
-        ranked = pd.DataFrame([])
-        while results.shape != ranked.shape:
-            tmpRanking = pd.DataFrame([])
-            for index, row in toRank.iterrows():                
+        possibilities = results
+        rankedRows = pd.DataFrame([])
+        improve = True
+        prevMax = 0
+        while improve == True:
+            tempDict = {}
+            for index, row in possibilities.iterrows():                
                 tmpData = ranked.append(row)
-                tmpData = tmpData.apply(aggregate)
-                tmpRanking = tmpRanking.append(pd.DataFrame([np.sum(tmpData)],index=[index]))    
-            ranked = ranked.append(toRank.loc[np.sum(tmpRanking,axis=1).sort_values(ascending=False).index.tolist()[0:1]])    
-            toRank = toRank.drop(ranked.index.tolist()[-1])            
+                tmpData = tmpData.apply(max)
+                tmpData = tmpData.apply(aggregate,axis = 1)
+                tempDict[index] = tempData.iloc[0]   
+            indexer = max(tempDict, key=tempDict.get)
+            value = tempDict[indexer]
+            ranked = ranked.append(possibilities.loc[[indexer]])
+            possibilities = possibilities.drop(ranked.index.tolist()[-1])  
+            if(value <= prevMax):
+                improve = False
+            else:
+                prevMax = value
         return(ranked.index.tolist())
 
 
